@@ -314,7 +314,7 @@ namespace MarchingCube_CPU
         };
         public MeshFilter meshFilter;
         public MeshCollider meshCollider;
-        public bool interlop = true;
+        public bool interpol = true;
         public float isoLevel = 0.5f;
         float[,,] mapData;
 
@@ -380,7 +380,7 @@ namespace MarchingCube_CPU
                         {
                             int indexA = cornerIndexFromEdge[triTable[cubeIndex, t], 0];
                             int indexB = cornerIndexFromEdge[triTable[cubeIndex, t], 1];
-                            Vector3 vertexPos = interlop ?
+                            Vector3 vertexPos = interpol ?
                                 VertexInterp(cube.corners[indexA], cube.corners[indexB], cube.values[indexA], cube.values[indexB])
                               : (cube.corners[indexA] + cube.corners[indexB]) / 2;
                             vertices.Add(vertexPos);

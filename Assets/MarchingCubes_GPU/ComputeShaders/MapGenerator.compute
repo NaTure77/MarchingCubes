@@ -1,0 +1,58 @@
+﻿#pragma kernel Generate
+#pragma kernel UseBrush
+#include "/Includes/Noise.compute"
+
+static const int numThreads = 8;
+
+int numPointsPerAxis = 50;
+RWStructuredBuffer<float> points;
+
+float hardfloor;
+float floorWeight;
+
+float scale;
+float3 offset;
+float3 chunkPos;
+
+float spacing;
+
+int PosToIndex(int x, int y, int z)
+{
+    return z * numPointsPerAxis * numPointsPerAxis + y * numPointsPerAxis + x;
+}
+[numthreads(numThreads,numThreads,numThreads)]
+void Generate (int3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numPointsPerAxis || id.y >= numPointsPerAxis || id.z >= numPointsPerAxis) 
+        return;
+
+    float val = PerlinNoise2D(float2(id.x * spacing * scale + offset.x, id.z * spacing * scale + offset.z))  * 50 / (id.y * spacing + chunkPos.y * numPointsPerAxis * spacing + offset.y + 1);
+    int index = PosToIndex(id.x,id.y,id.z);
+
+    points[index] = val;
+}
+
+int brushPos;
+float brushValue;
+int brushSize;
+int brushLength;
+float brushMax;
+RWStructuredBuffer<int> brushShape;
+RWStructuredBuffer<float> brushDist;
+
+[numthreads(numThreads,numThreads,numThreads)]
+void UseBrush(int3 id: SV_DispatchThreadID)
+{
+    //Brush 배열의 인덱스
+    int idx = id.z * brushSize * brushSize + id.y * brushSize + id.x;
+    if (idx >= brushLength) return;
+
+    //Points 배열의 인덱스
+    int pointIndex = brushPos + brushShape[idx];
+
+    if(pointIndex >= 0 && pointIndex < numPointsPerAxis * numPointsPerAxis * numPointsPerAxis)
+    {
+        points[pointIndex] = clamp(points[pointIndex] + brushValue * brushDist[idx] ,0, brushMax);
+    }
+    
+}

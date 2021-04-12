@@ -1,0 +1,118 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel March
+#include "/Includes/MarchTables.compute"
+static const int numThreads = 8;
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+struct Triangle {
+    float3 vertexC;
+    float3 vertexB;
+    float3 vertexA;
+};
+
+AppendStructuredBuffer<Triangle> triangles;
+RWStructuredBuffer<float> points;
+int numPointsPerAxis;
+float isoLevel;
+float spacing;
+bool interpol;
+
+float3 VertexInterp(float3 p1, float3 p2, float val1, float val2)
+{
+    return p1 + (p2 - p1) * (isoLevel - val1) / (val2 - val1);
+}
+
+int PosToIndex(int x, int y, int z)
+{
+    return z * numPointsPerAxis * numPointsPerAxis + y * numPointsPerAxis + x;
+}
+[numthreads(numThreads,numThreads,numThreads)]
+void March (int3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numPointsPerAxis-1 || id.y >= numPointsPerAxis-1 || id.z >= numPointsPerAxis-1) {
+        return;
+    }
+    float cubeValues[8] = 
+    {
+        points[PosToIndex(id.x, id.y, id.z)],
+        points[PosToIndex(id.x, id.y + 1, id.z)],
+        points[PosToIndex(id.x + 1, id.y + 1, id.z)],
+        points[PosToIndex(id.x + 1, id.y, id.z)],
+        points[PosToIndex(id.x, id.y, id.z + 1)],
+        points[PosToIndex(id.x, id.y + 1, id.z + 1)],
+        points[PosToIndex(id.x + 1, id.y + 1, id.z + 1)],
+        points[PosToIndex(id.x + 1, id.y, id.z + 1)]
+    };
+
+    float3 cubeCorners[8] =
+    {
+        float3(id.x, id.y, id.z) * spacing,
+        float3(id.x, id.y + 1, id.z)* spacing,
+        float3(id.x + 1, id.y + 1, id.z)* spacing,
+        float3(id.x + 1, id.y, id.z)* spacing,
+
+        float3(id.x, id.y, id.z + 1)* spacing,
+        float3(id.x, id.y + 1, id.z  + 1)* spacing,
+        float3(id.x + 1, id.y + 1, id.z + 1)* spacing,
+        float3(id.x + 1, id.y, id.z + 1)* spacing
+    };
+
+    int cubeIndex = 0;
+    if (cubeValues[0] < isoLevel) cubeIndex |= 1;
+    if (cubeValues[1] < isoLevel) cubeIndex |= 2;
+    if (cubeValues[2] < isoLevel) cubeIndex |= 4;
+    if (cubeValues[3] < isoLevel) cubeIndex |= 8;
+    if (cubeValues[4] < isoLevel) cubeIndex |= 16;
+    if (cubeValues[5] < isoLevel) cubeIndex |= 32;
+    if (cubeValues[6] < isoLevel) cubeIndex |= 64;
+    if (cubeValues[7] < isoLevel) cubeIndex |= 128;
+
+    if (interpol)
+    {
+        for (int i = 0; triangulation[cubeIndex][i] != -1; i += 3) 
+        {
+            // Get indices of corner points A and B for each of the three edges
+            // of the cube that need to be joined to form the triangle.
+            int a0 = cornerIndexAFromEdge[triangulation[cubeIndex][i]];
+            int b0 = cornerIndexBFromEdge[triangulation[cubeIndex][i]];
+
+            int a1 = cornerIndexAFromEdge[triangulation[cubeIndex][i + 1]];
+            int b1 = cornerIndexBFromEdge[triangulation[cubeIndex][i + 1]];
+
+            int a2 = cornerIndexAFromEdge[triangulation[cubeIndex][i + 2]];
+            int b2 = cornerIndexBFromEdge[triangulation[cubeIndex][i + 2]];
+
+            Triangle tri;
+            tri.vertexA = VertexInterp(cubeCorners[a0], cubeCorners[b0], cubeValues[a0], cubeValues[b0]);
+            tri.vertexB = VertexInterp(cubeCorners[a1], cubeCorners[b1], cubeValues[a1], cubeValues[b1]);
+            tri.vertexC = VertexInterp(cubeCorners[a2], cubeCorners[b2], cubeValues[a2], cubeValues[b2]);
+            triangles.Append(tri);
+        }
+    }
+    else
+    {
+        for (int i = 0; triangulation[cubeIndex][i] != -1; i += 3)
+        {
+            // Get indices of corner points A and B for each of the three edges
+            // of the cube that need to be joined to form the triangle.
+            int a0 = cornerIndexAFromEdge[triangulation[cubeIndex][i]];
+            int b0 = cornerIndexBFromEdge[triangulation[cubeIndex][i]];
+
+            int a1 = cornerIndexAFromEdge[triangulation[cubeIndex][i + 1]];
+            int b1 = cornerIndexBFromEdge[triangulation[cubeIndex][i + 1]];
+
+            int a2 = cornerIndexAFromEdge[triangulation[cubeIndex][i + 2]];
+            int b2 = cornerIndexBFromEdge[triangulation[cubeIndex][i + 2]];
+
+            Triangle tri;
+            tri.vertexA = (cubeCorners[a0] + cubeCorners[b0]) / 2;
+            tri.vertexB = (cubeCorners[a1] + cubeCorners[b1]) / 2;
+            tri.vertexC = (cubeCorners[a2] + cubeCorners[b2]) / 2;
+            triangles.Append(tri);
+        }
+    }
+
+    // TODO: insert actual code here!
+
+    //Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+}
