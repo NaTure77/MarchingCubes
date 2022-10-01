@@ -14,6 +14,7 @@ public class Chunk : MonoBehaviour
 
     public float[] mapData;
 
+
     public void Init(Vector3Int pos, int mapSize, Material mat)
     {
         meshFilter = gameObject.AddComponent<MeshFilter>();
@@ -22,6 +23,7 @@ public class Chunk : MonoBehaviour
         meshRenderer.material = mat;
         meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         meshRenderer.receiveShadows = false;
+
         if (meshFilter.sharedMesh == null)
         {
             Mesh mesh = new Mesh();
@@ -29,29 +31,38 @@ public class Chunk : MonoBehaviour
             meshFilter.sharedMesh = mesh;
         }
         position = pos;
-        mapData = new float[mapSize];
+       initMapData(mapSize);
     }
 
     public void Set(Vector3[] vertices, int[] triangles)
     {
         //meshFilter.sharedMesh = new Mesh();
         meshFilter.sharedMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-        Mesh mesh = meshFilter.sharedMesh;
-        mesh.Clear();
+        //Mesh mesh = meshFilter.sharedMesh;
+        Mesh mesh = new Mesh();
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        Destroy(meshFilter.sharedMesh);
+        meshFilter.sharedMesh = mesh;
+        //mesh.Clear();
         mesh.vertices = vertices;
         mesh.triangles = triangles;
         meshFilter.sharedMesh.RecalculateNormals();
-        meshCollider.sharedMesh = meshFilter.sharedMesh;
+        meshCollider.sharedMesh = mesh;
+    }
+
+    public void initMapData(int mapSize)
+    {
+         mapData = new float[mapSize];
     }
     public void Destroy()
     {
-        if (!Application.isPlaying)
+        /*if (!Application.isPlaying)
             UnityEditor.EditorApplication.delayCall += () =>
             {
                 DestroyImmediate(gameObject, false);
             };
 
-        else
+        else*/
             Destroy(gameObject);
                 
     }

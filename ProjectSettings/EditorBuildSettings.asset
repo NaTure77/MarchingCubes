@@ -4,5 +4,11 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/MarchingCubes_GPU/Scenes/MarchingCube_GPU.unity
+    guid: 15b55b2c2079da84db8bcbedb6581767
+  - enabled: 1
+    path: Assets/MarchingCubes_CPU/Scenes/MarchingCube_CPU.unity
+    guid: 0c842aa72bf5513458958633f708b824
   m_configObjects: {}

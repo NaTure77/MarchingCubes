@@ -49,28 +49,6 @@ namespace MarchingCube_CPU
             return (v.x >= 0 && v.x < mapSize && v.y >= 0 && v.y < mapSize && v.z >= 0 && v.z < mapSize);
         }
 
-        public void DrawClock()
-        {
-            Clock clock = new Clock(50);
-
-            char[,] clockDisplay = clock.GetDisplay();
-
-            int mapCenter = mapSize / 2;
-            Action printMethod = () =>
-            {
-                for (int i = 0; i < clockDisplay.GetLength(0); i++)
-                    for (int j = 0; j < clockDisplay.GetLength(1); j++)
-                    {
-                        if (clockDisplay[i, j] != ' ')
-                        {
-                            mapData[i, j, mapCenter] = meshGenerator.isoLevel + 1;
-                        }
-                        else mapData[i, j, mapCenter] = 0;
-                    }
-                meshGenerator.March(mapData);
-            };
-            StartCoroutine(clock.ClockCoroutine(1,printMethod));
-        }
         public void UseBrush(Vector3 p, bool EraseMode)
         {
             Vector3Int pos = new Vector3Int((int)Mathf.Round(p.x),(int)Mathf.Round(p.y),(int)Mathf.Round(p.z));
@@ -114,7 +92,7 @@ namespace MarchingCube_CPU
                     float sample = Mathf.PerlinNoise(i * 0.1f * scale + offset.x, k * 0.1f * scale + offset.z);// * density * mapSize.y;
                     for (int j = 1; j < mapSize; j++)
                     {
-                        mapData[i, j, k] = sample * 50 / (j)  + offset.y;
+                        mapData[i, j, k] = sample * 128 / (j)  + offset.y;
                     }
                 }
             return MakeFloor(mapData, meshGenerator.isoLevel);

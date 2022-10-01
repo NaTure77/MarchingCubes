@@ -53,3 +53,15 @@ float PerlinNoise2D(float2 P)
     float n_xy = lerp(n_x.x, n_x.y, fade_xy.y);
     return 2.3 * n_xy;
 }
+
+
+float PerlinNoise3D(float3 p)
+{
+    float xy = PerlinNoise2D(p.xy);
+    float xz = PerlinNoise2D(p.xz);
+    float yz = PerlinNoise2D(p.yz);
+    float yx = PerlinNoise2D(p.yx);
+    float zx = PerlinNoise2D(p.zx);
+    float zy = PerlinNoise2D(p.zy);
+    return (xy + xz + yz + yx + zx + zy) / 6;
+}

@@ -2,16 +2,22 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
+using Unity.Jobs;
+using Unity.Collections;
+using System;
+using System.Runtime.InteropServices;
+using System.IO;
 
 namespace MarchingCube_GPU
 {
     public class MeshGenerator : MonoBehaviour
     {
+        public float viewDistance = 37f;
         public ComputeShader shader;
         ComputeBuffer triCount;
         ComputeBuffer trianglesBuffer;
        
-        int kernelID = 0;
+        
         private struct CSPARAM
         {
             public const string KERNEL = "March";
@@ -25,23 +31,21 @@ namespace MarchingCube_GPU
             public const string interpol = "interpol";
             public const int THREAD_NUMBER = 8;
         }
-        private void Awake()
-        {
-            Application.targetFrameRate = 60;
-        }
-        private void OnValidate() 
-        {
-            if(trianglesBuffer == null)
-            {
-                return;
-            }
-        }
 
+        
+        int kernelID = 0;
         int threadGroupNum;
-        public void InitBuffers(int numPointsPerAxis, float boundSize, ComputeBuffer pointsBuffer)
+
+        int[] triangleOrder;
+
+        public void InitCSParams(int numPointsPerAxis, float boundSize, ComputeBuffer pointsBuffer)
         {
             int numVoxelsPerAxis = numPointsPerAxis - 1;
             int maxTriangleCount = numVoxelsPerAxis * numVoxelsPerAxis * numVoxelsPerAxis * 5;
+
+            triangleOrder = new int[maxTriangleCount];
+            for(int i = 0; i < maxTriangleCount; i++) triangleOrder[i] = i;
+
             trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 9, ComputeBufferType.Append);
             triCount = new ComputeBuffer(1, sizeof(int), ComputeBufferType.Raw);
 
@@ -70,12 +74,15 @@ namespace MarchingCube_GPU
             shader.SetFloat(CSPARAM.isoLevel, l);
         }
 
+
+        MakeMeshArray job;
+        JobHandle handle;
+        
         public void March(Chunk chunk)
         {
             trianglesBuffer.SetCounterValue (0);
             
             shader.Dispatch(kernelID, threadGroupNum, threadGroupNum, threadGroupNum);
-
             //삼각형 개수 구하기.
             ComputeBuffer.CopyCount(trianglesBuffer,triCount,0);
             int[] triCountArray = {0};
@@ -83,76 +90,47 @@ namespace MarchingCube_GPU
             int numTris = triCountArray[0];
 
             //삼각형 배열 구하기
-            Triangle[] triangles = new Triangle[numTris];
-            trianglesBuffer.GetData(triangles,0,0,numTris);
-            var vertices = new Vector3[numTris * 3];
-              var meshTriangles = new int[numTris * 3];
-
+            Triangle[] t = new Triangle[numTris];
+            Vector3[] vertices = new Vector3[numTris * 3];
+            int[] meshTriangles = new int[numTris * 3];
+            Array.Copy(triangleOrder,meshTriangles,numTris * 3);
+            trianglesBuffer.GetData(t,0,0,numTris);
+            
             Parallel.For(0, numTris, (i) =>
-              {
-                //for (int i = 0; i < numTris; i++) {
-                for (int j = 0; j < 3; j++)
-                  {
-                      meshTriangles[i * 3 + j] = i * 3 + j;
-                      vertices[i * 3 + j] = triangles[i][j];
-                  }
-              });
-            chunk.Set(vertices, meshTriangles);
-            //UpdateMesh(vertices, meshTriangles);
+            {
+                int triIdx = i * 3;
+                vertices[triIdx] = t[i].a;
+                vertices[triIdx + 1] = t[i].b;
+                vertices[triIdx + 2] = t[i].c;
+            });
+            
+            /*NativeArray<int> tri = new NativeArray<int>(numTris * 3, Allocator.TempJob);
+            job.meshTriangles = tri;
+            handle = job.Schedule(numTris * 3,64); 10, 5  0~ 4, 5 ~
+            handle.Complete();
+            tri.Dispose();*/
+            chunk.Set(vertices,meshTriangles);
+            
+            //StartCoroutine(CoMakeMeshArray(chunk,vertices,numTris));
+            
+            
         }
     }
-    class Cube
+    struct MakeMeshArray : IJobParallelFor
     {
-        public Vector3[] corners = new Vector3[8];
-
-        public float[] values = new float[8];
-        public void Set(int i, int j, int k, int m, float[] mapData)
+        public NativeArray<int> meshTriangles;
+        public void Execute(int i)
         {
-            corners[0] = new Vector3(i, j, k);
-            corners[1] = new Vector3(i, j + 1, k);
-            corners[2] = new Vector3(i + 1, j + 1, k);
-            corners[3] = new Vector3(i + 1, j, k);
-
-            corners[4] = new Vector3(i, j, k + 1);
-            corners[5] = new Vector3(i, j + 1, k + 1);
-            corners[6] = new Vector3(i + 1, j + 1, k + 1);
-            corners[7] = new Vector3(i + 1, j, k + 1);
-
-            values[0] = mapData[PosToIndex(i, j, k,m)];
-            values[1] = mapData[PosToIndex(i, j + 1, k, m)];
-            values[2] = mapData[PosToIndex(i + 1, j + 1, k, m)];
-            values[3] = mapData[PosToIndex(i + 1, j, k, m)];
-
-            values[4] = mapData[PosToIndex(i, j, k + 1, m)];
-            values[5] = mapData[PosToIndex(i, j + 1, k + 1, m)];
-            values[6] = mapData[PosToIndex(i + 1, j + 1, k + 1, m)];
-            values[7] = mapData[PosToIndex(i + 1, j, k + 1, m)];
-        }
-        int PosToIndex(int x, int y, int z, int mapSize)
-        {
-            return z * mapSize * mapSize + y * mapSize + x;
+            meshTriangles[i + 10] = i;
         }
     }
-
     struct Triangle
     {
+        
         #pragma warning disable 649 // disable unassigned variable warning
         public Vector3 a;
         public Vector3 b;
         public Vector3 c;
-
-        public Vector3 this [int i] {
-            get {
-                switch (i) {
-                    case 0:
-                        return a;
-                    case 1:
-                        return b;
-                    default:
-                        return c;
-                }
-            }
-        }
     }
 }
 

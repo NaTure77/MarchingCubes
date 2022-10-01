@@ -1,5 +1,7 @@
 ﻿#pragma kernel Generate
 #pragma kernel UseBrush
+#pragma kernel Generate3D
+#pragma kernel GenerateSphere
 #include "/Includes/Noise.compute"
 
 static const int numThreads = 8;
@@ -12,9 +14,10 @@ float floorWeight;
 
 float scale;
 float3 offset;
-float3 chunkPos;
-
 float spacing;
+
+float3 nestedChunkPos;
+
 
 int PosToIndex(int x, int y, int z)
 {
@@ -25,34 +28,70 @@ void Generate (int3 id : SV_DispatchThreadID)
 {
     if (id.x >= numPointsPerAxis || id.y >= numPointsPerAxis || id.z >= numPointsPerAxis) 
         return;
+    float3 pos = nestedChunkPos + id;
+    pos.y += 50;
+    float val = PerlinNoise2D(float2(pos.x,pos.z) * spacing * scale * 0.5) + 1;
+    int index = PosToIndex(id.x,id.y,id.z);
+    if(pos.y > 0) 
+        points[index] = (val / pos.y) * 3;
+    else points[index] = val;
+}
 
-    float val = PerlinNoise2D(float2(id.x * spacing * scale + offset.x, id.z * spacing * scale + offset.z))  * 50 / (id.y * spacing + chunkPos.y * numPointsPerAxis * spacing + offset.y + 1);
+[numthreads(numThreads,numThreads,numThreads)]
+void Generate3D(int3 id: SV_DispatchThreadID)
+{
+    if (id.x >= numPointsPerAxis || id.y >= numPointsPerAxis || id.z >= numPointsPerAxis) 
+        return;
+
+    float3 pos = (nestedChunkPos + id) * spacing * scale;
+
+    float val = clamp(PerlinNoise3D(pos), 0,1);
     int index = PosToIndex(id.x,id.y,id.z);
 
     points[index] = val;
 }
 
-int brushPos;
+
+[numthreads(numThreads,numThreads,numThreads)]
+void GenerateSphere(int3 id: SV_DispatchThreadID)
+{
+    if (id.x >= numPointsPerAxis || id.y >= numPointsPerAxis || id.z >= numPointsPerAxis) 
+        return;
+
+    float3 pos = nestedChunkPos + id;
+    float val = length(pos);
+    int index = PosToIndex(id.x,id.y,id.z);
+    /*float v = ((sin(atan2(pos.z,pos.x) * 50) + sin(atan2(pos.y,pos.x) * 50) + sin(atan2(pos.z,pos.y) * 50)) / 3 + 1 ) * 5;
+    if(v + val < 100)
+        points[index] = 1 - (v + val) / 100;
+    else points[index] = 0;*/
+
+    if(val < 100)
+        points[index] = 1 - val/100;
+    else points[index] = 0;
+}
+
 float brushValue;
 int brushSize;
-int brushLength;
-float brushMax;
-RWStructuredBuffer<int> brushShape;
-RWStructuredBuffer<float> brushDist;
+float3 nestedBrushPos;
 
 [numthreads(numThreads,numThreads,numThreads)]
 void UseBrush(int3 id: SV_DispatchThreadID)
 {
-    //Brush 배열의 인덱스
-    int idx = id.z * brushSize * brushSize + id.y * brushSize + id.x;
-    if (idx >= brushLength) return;
+    if (id.x >= numPointsPerAxis || id.y >= numPointsPerAxis || id.z >= numPointsPerAxis) 
+        return;
 
+        
+    float3 pos = nestedChunkPos + id;
+    float dist = length(pos - nestedBrushPos);
     //Points 배열의 인덱스
-    int pointIndex = brushPos + brushShape[idx];
+    int index = PosToIndex(id.x,id.y,id.z);
 
-    if(pointIndex >= 0 && pointIndex < numPointsPerAxis * numPointsPerAxis * numPointsPerAxis)
+    
+
+    if(brushSize <= dist)
     {
-        points[pointIndex] = clamp(points[pointIndex] + brushValue * brushDist[idx] ,0, brushMax);
+        points[index] = points[index] + (1 - points[index]) * dist * brushValue;
     }
     
 }

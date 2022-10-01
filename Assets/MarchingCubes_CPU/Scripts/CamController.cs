@@ -56,7 +56,7 @@ namespace MarchingCube_CPU
             }
 
             Vector3 forward = Quaternion.Euler(0, rot_x, 0) * Vector3.forward * direction.z;
-            transform.position += (forward + transform.right * direction.x + Vector3.up * direction.y) * moveSpeed * Time.deltaTime;
+            transform.position += (forward + transform.right * direction.x + Vector3.up * direction.y).normalized * moveSpeed * Time.deltaTime;
 
 
 

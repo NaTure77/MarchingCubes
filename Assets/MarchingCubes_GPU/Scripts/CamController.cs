@@ -10,62 +10,77 @@ namespace MarchingCube_GPU
 
         // Update is called once per frame
 
+        //public GameObject body;
         float rot_x;
         float rot_y;
 
-        float sensitivity = 2;
+        public float rotSpeed = 2;
 
         public float moveSpeed = 3;
 
         Camera cam;
-        public Transform PointIndicator;
+
+
         void Awake()
         {
             cam = Camera.main;
+            Cursor.visible = false;
+            Cursor.lockState = CursorLockMode.Locked;
+            Application.targetFrameRate = 60;
         }
         void Update()
         {
-            rot_x += Input.GetAxis("Mouse X") * sensitivity;
-            rot_y -= Input.GetAxis("Mouse Y") * sensitivity;
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR
+			rot_x += Input.GetAxis("Mouse X") * rotSpeed;
+            rot_y -= Input.GetAxis("Mouse Y") * rotSpeed;
+#elif UNITY_ANDROID
+            if (Input.touchCount > 0)
+            {
+                Vector2 i= Input.GetTouch(0).deltaPosition;
+                rot_x += i.x * sensitivity * 0.5f;
+                rot_y -= i.y * sensitivity * 0.5f;
+            }
+			
+#endif
+
+			
+            //rot_x += Input.GetAxis("Mouse X") * sensitivity;
+            //rot_y -= Input.GetAxis("Mouse Y") * sensitivity;
 
             rot_y = Mathf.Clamp(rot_y, -90, 90);
-            transform.eulerAngles = new Vector3(rot_y, rot_x, 0);
+
+            Quaternion rot = Quaternion.Euler(new Vector3(rot_y, rot_x, 0));
+            transform.rotation = Quaternion.Lerp(transform.rotation, rot, 0.3f);
+
+            //transform.eulerAngles = new Vector3(rot_y, rot_x % 360, 0);
             Vector3 direction = new Vector3();
-            if (Input.GetKey(KeyCode.W))
-            {
-                direction += Vector3.forward;
-            }
-            if (Input.GetKey(KeyCode.A))
-            {
-                direction += Vector3.left;
-            }
-            if (Input.GetKey(KeyCode.S))
-            {
-                direction += Vector3.back;
-            }
-            if (Input.GetKey(KeyCode.D))
-            {
-                direction += Vector3.right;
-            }
-            if (Input.GetKey(KeyCode.V))
+            if (Input.GetKey(KeyCode.Space))
             {
                 direction += Vector3.up;
             }
-            if (Input.GetKey(KeyCode.C))
+            if (Input.GetKey(KeyCode.LeftShift))
             {
                 direction += Vector3.down;
             }
 
+            direction.x = Input.GetAxis("Horizontal");
+            direction.z = Input.GetAxis("Vertical");
+
             Vector3 forward = Quaternion.Euler(0, rot_x, 0) * Vector3.forward * direction.z;
-            transform.position += (forward + transform.right * direction.x + Vector3.up * direction.y) * moveSpeed * Time.deltaTime;
+
+            Vector3 nextPosition = transform.position + (forward + transform.right * direction.x + Vector3.up * direction.y) * moveSpeed * Time.deltaTime;
+            transform.position = nextPosition;//Vector3.Lerp(transform.position,nextPosition, 0.3f);
 
 
 
-            if (Input.GetKeyDown(KeyCode.Space)) StartCoroutine(UseBrush(KeyCode.Space, false));
-            if (Input.GetKeyDown(KeyCode.X)) StartCoroutine(UseBrush(KeyCode.X, true));
+            if (Input.GetKeyDown(KeyCode.Mouse0)) StartCoroutine(UseBrush(KeyCode.Mouse0, false));
+            if (Input.GetKeyDown(KeyCode.Mouse1)) StartCoroutine(UseBrush(KeyCode.Mouse1, true));
+            if (Input.GetKey(KeyCode.E)) MakeSphere();
         }
-
-        float maxDistance = 1000;
+        void MakeSphere()
+        {
+            MapGenerator.instance.UseBrush(transform.position, false);
+        }
         IEnumerator UseBrush(KeyCode inputKey, bool eraseMode)
         {
             Vector2 input = new Vector2(Screen.width / 2.0f, Screen.height / 2.0f);
@@ -74,10 +89,10 @@ namespace MarchingCube_GPU
             {
                 Ray ray = cam.ScreenPointToRay(input);
 
-                if (Physics.Raycast(ray, out hit, maxDistance))// && !hit.collider.tag.Equals("Untagged"))
+                if (Physics.Raycast(ray, out hit, 300))// && !hit.collider.tag.Equals("Untagged"))
                 {
                     //PointIndicator.position = hit.point;
-                    MapGenerator.instance.UseBrush(hit.point, eraseMode);
+                   MapGenerator.instance.UseBrush(hit.point, eraseMode);
                 }
                 yield return null;
             }
