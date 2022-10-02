@@ -1,21 +1,22 @@
 # MarchingCubes
 Marching Cubes Algorithm Unity Examples
 
-## ScreenShots
-![image](https://user-images.githubusercontent.com/18459135/113655361-9c08fd00-96d4-11eb-970b-edc64ce8be91.png)
-
-![image](https://user-images.githubusercontent.com/18459135/113655497-e5594c80-96d4-11eb-9882-b70116075e91.png)
+## Video
+[![The Endless marching Cubes](http://img.youtube.com/vi/UQQ8rkkoNtA/0.jpg)](https://youtu.be/UQQ8rkkoNtA)
 
 ## Key Set
 
 ### Movement
 ```
 Moving: W,A,S,D
-Up: V
-Down: C
+Up: Space Bar
+Down: Left Shift
 ```
 ### Map Interaction
 ```
-Add MapData: Space Bar
-Sub MapData: X
+Add MeshValue: Right Mouse Button
+Sub MeshValue: Left Mouse Button
 ```
+
+## Reference
+[Coding Adventure: Marching Cubes](https://github.com/SebLague/Marching-Cubes)
