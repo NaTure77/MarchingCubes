@@ -750,8 +750,8 @@ MonoBehaviour:
   PerlinFlow: 0
   scale: 0.01
   offset: {x: 0, y: 0, z: 0}
-  brushSpeed: 0.8
-  brushSize: 10
+  brushSpeed: 1.5
+  brushSize: 20
   numPointsPerAxis: 32
   boundsSize: 64
   isoLevel: 0.1
